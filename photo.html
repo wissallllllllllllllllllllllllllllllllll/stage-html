@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Crop and Resize</title>
+    <style>
+        #preview-container {
+            width: 300px;
+            height: 500px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #ccc;
+        }
+    
+        #preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    
+        #crop-container {
+            display: none;
+        }
+    
+        #video {
+            display: block; /* Change to block to ensure visibility */
+            width: 320px; /* Set desired width */
+            height: 240px; /* Set desired height */
+            object-fit: cover; /* Maintain aspect ratio and cover the area */
+            border: 2px solid #ccc; /* Optional: add border for visibility */
+        }
+    </style>
+    
+</head>
+<body>
+    <h1>Photo Crop and Resize</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <button id="takePhotoButton">Take a Photo</button>
+    <br><br>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="crop-container">
+        <div id="preview-container">
+            <img id="preview" src="#" alt="Image Preview">
+        </div>
+        <br><br>
+        <button id="cropButton">save</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.12/dist/cropper.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.12/dist/cropper.min.css" rel="stylesheet">
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const cropButton = document.getElementById('cropButton');
+        const saveButton = document.getElementById('saveButton');
+        const cropContainer = document.getElementById('crop-container');
+        const canvas = document.getElementById('canvas');
+        const video = document.getElementById('video');
+        const takePhotoButton = document.getElementById('takePhotoButton');
+        let cropper;
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    preview.src = e.target.result;
+                    cropContainer.style.display = 'block';
+                    if (cropper) {
+                        cropper.destroy();
+                    }
+                    cropper = new Cropper(preview, {
+                        aspectRatio: 1, // Change this ratio as needed
+                        viewMode: 1,
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        takePhotoButton.addEventListener('click', () => {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    video.style.display = 'block';
+                    takePhotoButton.textContent = 'Capture Photo';
+                    
+                    takePhotoButton.onclick = () => {
+                        const context = canvas.getContext('2d');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const dataURL = canvas.toDataURL('image/png');
+                        preview.src = dataURL;
+                        cropContainer.style.display = 'block';
+                        video.style.display = 'none';
+                        stream.getTracks().forEach(track => track.stop());
+                        takePhotoButton.textContent = 'Take a Photo';
+
+                        if (cropper) {
+                            cropper.destroy();
+                        }
+                        cropper = new Cropper(preview, {
+                            aspectRatio: 1, // Change this ratio as needed
+                            viewMode: 1,
+                        });
+                    };
+                })
+                .catch((err) => {
+                    console.error("Error accessing webcam: ", err);
+                });
+        });
+
+        cropButton.addEventListener('click', () => {
+            const croppedCanvas = cropper.getCroppedCanvas({
+                width: 300, // Desired width
+                height: 300, // Desired height
+                imageSmoothingQuality: 'high',
+            });
+            canvas.width = croppedCanvas.width;
+            canvas.height = croppedCanvas.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(croppedCanvas, 0, 0);
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cropped-image.jpg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/jpeg', 0.9); // Adjust quality parameter as needed
+        });
+
+        saveButton.addEventListener('click', () => {
+            const croppedCanvas = cropper.getCroppedCanvas({
+                width: 300, // Desired width
+                height: 300, // Desired height
+                imageSmoothingQuality: 'high',
+            });
+            croppedCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cropped-image.jpg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/jpeg', 0.9); // Adjust quality parameter as needed
+        });
+    </script>
+</body>
+</html>
